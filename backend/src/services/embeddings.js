@@ -1,4 +1,8 @@
 import { QdrantClient } from "@qdrant/js-client-rest";
+import { env } from "@xenova/transformers";
+
+env.cacheDir = "/tmp/transformers";
+
 let pipeline;
 
 async function getPipeline() {
