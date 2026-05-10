@@ -1,6 +1,13 @@
 import { QdrantClient } from "@qdrant/js-client-rest";
-import { pipeline } from "@xenova/transformers";
+let pipeline;
 
+async function getPipeline() {
+  if (!pipeline) {
+    const transformers = await import("@xenova/transformers");
+    pipeline = transformers.pipeline;
+  }
+  return pipeline;
+}
 // ── Model config ─────────────────────────────────────────────────
 // Local embeddings avoid Groq model availability issues.
 // all-MiniLM-L6-v2: fast, lightweight, 384-dim, suitable for semantic search.
@@ -12,7 +19,8 @@ let qdrant;
 
 async function getEmbedder() {
   if (!embedderPromise) {
-    embedderPromise = pipeline("feature-extraction", EMBED_MODEL);
+    const pipe = await getPipeline();
+    embedderPromise = pipe("feature-extraction", EMBED_MODEL);
   }
 
   return embedderPromise;

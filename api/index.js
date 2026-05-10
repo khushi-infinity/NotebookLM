@@ -1,3 +1,4 @@
-export default (req, res) => {
-	res.status(200).json({ ok: true, message: "Minimal test" });
+import app from "../backend/src/app.js";
+
+export default app;
 };
