@@ -1,6 +1,5 @@
 import express from "express";
 import cors from "cors";
-
 import uploadRoute from "./routes/upload.js";
 import uploadIndexRoute from "./routes/upload-index.js";
 import indexRoute from "./routes/index.js";
