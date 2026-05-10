@@ -2,8 +2,11 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 
-// Ensure the uploads directory exists
-const UPLOAD_DIR = "./uploads";
+// Use a writable temp path on Vercel; local dev keeps the repo uploads folder.
+const UPLOAD_DIR = process.env.VERCEL
+  ? "/tmp/uploads"
+  : path.resolve(process.cwd(), "uploads");
+
 if (!fs.existsSync(UPLOAD_DIR)) {
   fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 }
