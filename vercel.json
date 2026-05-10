@@ -1,6 +1,14 @@
 {
   "version": 2,
+  "buildCommand": "echo 'Building...'",
+  "outputDirectory": "public",
+  "public": true,
+  "cleanUrls": false,
   "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "/api/index"
+    },
     {
       "source": "/(.*)",
       "destination": "/api/index"

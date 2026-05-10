@@ -3,6 +3,7 @@ import express from "express";
 import cors from "cors";
 import path from "path";
 import { fileURLToPath } from "url";
+import fs from "fs";
 
 import uploadRoute from "./routes/upload.js";
 import uploadIndexRoute from "./routes/upload-index.js";
@@ -17,7 +18,11 @@ const frontendDir = path.resolve(__dirname, "../../frontend");
 
 app.use(cors({ origin: "*" }));
 app.use(express.json());
-app.use(express.static(frontendDir));
+
+// Only serve static files if the frontend directory exists (local dev)
+if (fs.existsSync(frontendDir)) {
+  app.use(express.static(frontendDir));
+}
 
 app.use("/api/upload", uploadRoute);
 app.use("/api/upload-index", uploadIndexRoute);
