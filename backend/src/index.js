@@ -1,4 +1,13 @@
 import app from "./app.js";
+import express from "express";
+import path from "path";
+import { fileURLToPath } from "url";
+
+// Serve frontend in local development
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const frontendDir = path.resolve(__dirname, "../../frontend");
+app.use(express.static(frontendDir));
 
 // ── Start ────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 3000;
