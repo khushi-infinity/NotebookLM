@@ -1,3 +1,4 @@
+import "dotenv/config";
 import app from "./app.js";
 import express from "express";
 import path from "path";
