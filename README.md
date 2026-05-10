@@ -4,6 +4,9 @@ A full-stack RAG (Retrieval-Augmented Generation) application — upload any PDF
 
 ---
 
+![Home](./assets/images/home.png)
+![Chat](./assets/images/chat.png)
+
 ## Folder Structure
 
 ```
