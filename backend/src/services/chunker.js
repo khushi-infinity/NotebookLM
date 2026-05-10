@@ -108,3 +108,41 @@ export async function loadAndChunk(filePath) {
 
   return { chunks, pageCount };
 }
+
+export async function loadAndChunkFromUpload(file) {
+  const ext = path.extname(file.originalname || "").toLowerCase();
+  let rawText = "";
+  let pageCount = 1;
+
+  if (ext === ".pdf") {
+    const data = await pdfParse(file.buffer);
+    rawText = data.text;
+    pageCount = data.numpages || 1;
+  } else {
+    rawText = file.buffer.toString("utf-8");
+    pageCount = Math.max(1, Math.ceil(rawText.length / 3000));
+  }
+
+  if (!rawText.trim()) {
+    throw new Error("Document appears to be empty or could not be parsed.");
+  }
+
+  const texts = recursiveSplit(rawText, 1000, 200);
+
+  const chunks = texts.map((text, i) => {
+    const searchSnippet = text.slice(0, 60).replace(/\s+/g, " ").trim();
+    const approxOffset = rawText.indexOf(searchSnippet);
+    const page = estimatePage(
+      approxOffset > 0 ? approxOffset : i * 800,
+      rawText.length,
+      pageCount
+    );
+
+    return {
+      text,
+      metadata: { page, chunkIndex: i },
+    };
+  });
+
+  return { chunks, pageCount };
+}

@@ -3,7 +3,7 @@
    Talks to the Node.js backend via REST API
    ═══════════════════════════════════════════════════════════ */
 
-const API_BASE = "http://localhost:3000"; // Change to deployed backend URL
+const API_BASE = window.location.origin;
 
 /* ── State ─────────────────────────────────────────────── */
 const state = {
@@ -158,28 +158,18 @@ el.uploadBtn.addEventListener("click", async () => {
   formData.append("file", file);
 
   try {
-    // Step 1: Upload
-    const uploadRes = await fetch(`${API_BASE}/api/upload`, {
+    // Single-step upload + index for serverless compatibility
+    const uploadRes = await fetch(`${API_BASE}/api/upload-index`, {
       method: "POST",
       body: formData,
     });
 
     if (!uploadRes.ok) throw new Error((await uploadRes.json()).error || "Upload failed");
-    const { fileId, fileName } = await uploadRes.json();
+    const { fileId, fileName, collectionName, pageCount } = await uploadRes.json();
 
     setProgress(30, "Chunking document…");
     await sleep(400);
     setProgress(55, "Generating embeddings…");
-
-    // Step 2: Index
-    const indexRes = await fetch(`${API_BASE}/api/index`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ fileId }),
-    });
-
-    if (!indexRes.ok) throw new Error((await indexRes.json()).error || "Indexing failed");
-    const { collectionName, pageCount } = await indexRes.json();
 
     setProgress(85, "Storing vectors…");
     await sleep(400);

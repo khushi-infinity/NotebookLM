@@ -8,6 +8,15 @@ if (!fs.existsSync(UPLOAD_DIR)) {
   fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 }
 
+function validateExt(file, cb) {
+  const ext = path.extname(file.originalname).toLowerCase();
+  if ([".pdf", ".txt"].includes(ext)) {
+    cb(null, true);
+  } else {
+    cb(new Error("Only PDF and TXT files are supported."), false);
+  }
+}
+
 // Save files with a unique timestamped name, preserving extension
 const storage = multer.diskStorage({
   destination: (_, __, cb) => cb(null, UPLOAD_DIR),
@@ -22,12 +31,11 @@ const storage = multer.diskStorage({
 export const upload = multer({
   storage,
   limits: { fileSize: 20 * 1024 * 1024 },
-  fileFilter: (_, file, cb) => {
-    const ext = path.extname(file.originalname).toLowerCase();
-    if ([".pdf", ".txt"].includes(ext)) {
-      cb(null, true);
-    } else {
-      cb(new Error("Only PDF and TXT files are supported."), false);
-    }
-  },
+  fileFilter: (_, file, cb) => validateExt(file, cb),
+});
+
+export const uploadMemory = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 20 * 1024 * 1024 },
+  fileFilter: (_, file, cb) => validateExt(file, cb),
 });

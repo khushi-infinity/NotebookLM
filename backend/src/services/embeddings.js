@@ -1,8 +1,6 @@
 import { QdrantClient } from "@qdrant/js-client-rest";
 import { pipeline } from "@xenova/transformers";
 
-const qdrant = new QdrantClient({ url: process.env.QDRANT_URL || "http://localhost:6333" });
-
 // ── Model config ─────────────────────────────────────────────────
 // Local embeddings avoid Groq model availability issues.
 // all-MiniLM-L6-v2: fast, lightweight, 384-dim, suitable for semantic search.
@@ -10,6 +8,7 @@ const EMBED_MODEL = "Xenova/all-MiniLM-L6-v2";
 const VECTOR_DIM  = 384;
 
 let embedderPromise;
+let qdrant;
 
 async function getEmbedder() {
   if (!embedderPromise) {
@@ -17,6 +16,16 @@ async function getEmbedder() {
   }
 
   return embedderPromise;
+}
+
+function getQdrant() {
+  if (!qdrant) {
+    qdrant = new QdrantClient({
+      url: process.env.QDRANT_URL || "http://localhost:6333",
+      apiKey: process.env.QDRANT_API_KEY,
+    });
+  }
+  return qdrant;
 }
 
 // ── Embed a single string ─────────────────────────────────────────
@@ -47,10 +56,10 @@ async function embedBatch(texts) {
 // ── Ensure Qdrant collection exists ──────────────────────────────
 async function ensureCollection(name) {
   try {
-    await qdrant.getCollection(name);
+    await getQdrant().getCollection(name);
     // Collection already exists — nothing to do
   } catch {
-    await qdrant.createCollection(name, {
+    await getQdrant().createCollection(name, {
       vectors: { size: VECTOR_DIM, distance: "Cosine" },
     });
   }
@@ -77,7 +86,7 @@ export async function storeChunks(chunks, collectionName) {
   // Upsert in batches of 100 to avoid payload size limits
   const batchSize = 100;
   for (let i = 0; i < points.length; i += batchSize) {
-    await qdrant.upsert(collectionName, {
+    await getQdrant().upsert(collectionName, {
       wait:   true,
       points: points.slice(i, i + batchSize),
     });
@@ -88,7 +97,7 @@ export async function storeChunks(chunks, collectionName) {
 export async function retrieve(query, collectionName, k = 4) {
   const queryVector = await embed(query);
 
-  const results = await qdrant.search(collectionName, {
+  const results = await getQdrant().search(collectionName, {
     vector:       queryVector,
     limit:        k,
     with_payload: true,

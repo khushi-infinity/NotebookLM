@@ -1,15 +1,19 @@
 import { Router }       from "express";
 import { QdrantClient } from "@qdrant/js-client-rest";
-import fs   from "fs";
-import path from "path";
 import { collectionNameFromFileId } from "../services/collection.js";
 
-const qdrant = new QdrantClient({ url: process.env.QDRANT_URL || "http://localhost:6333" });
 const router = Router();
+
+function getQdrant() {
+  return new QdrantClient({
+    url: process.env.QDRANT_URL || "http://localhost:6333",
+    apiKey: process.env.QDRANT_API_KEY,
+  });
+}
 
 /**
  * DELETE /api/source/:fileId
- * Deletes the Qdrant collection and the uploaded file from disk.
+ * Deletes the Qdrant collection.
  * Always returns { ok: true } so the frontend can clean up its UI
  * even if the backend resources were already removed.
  *
@@ -22,19 +26,9 @@ router.delete("/:fileId", async (req, res) => {
 
   // Delete Qdrant collection (non-fatal if it doesn't exist)
   try {
-    await qdrant.deleteCollection(collectionName);
+    await getQdrant().deleteCollection(collectionName);
   } catch (err) {
     console.warn("[/api/source] Qdrant delete failed:", err.message);
-  }
-
-  // Delete uploaded file from disk (non-fatal)
-  try {
-    const filePath = path.resolve("./uploads", fileId);
-    if (fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath);
-    }
-  } catch (err) {
-    console.warn("[/api/source] File delete failed:", err.message);
   }
 
   res.json({ ok: true });
