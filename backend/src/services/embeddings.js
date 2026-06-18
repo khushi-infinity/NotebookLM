@@ -1,21 +1,21 @@
 import { QdrantClient } from "@qdrant/js-client-rest";
-import { env } from "@xenova/transformers";
-
-env.cacheDir = "/tmp/transformers";
 
 let pipeline;
 
 async function getPipeline() {
   if (!pipeline) {
     const transformers = await import("@xenova/transformers");
+    // Set cache directory on the dynamically imported env
+    transformers.env.cacheDir = "/tmp/transformers";
     pipeline = transformers.pipeline;
   }
   return pipeline;
 }
+
 // ── Model config ─────────────────────────────────────────────────
-// Local embeddings avoid Groq model availability issues.
-// all-MiniLM-L6-v2: fast, lightweight, 384-dim, suitable for semantic search.
+// Local/hosted model config. We use all-MiniLM-L6-v2 because it's fast, lightweight, and 384-dimensional.
 const EMBED_MODEL = "Xenova/all-MiniLM-L6-v2";
+const HF_EMBED_MODEL = "sentence-transformers/all-MiniLM-L6-v2";
 const VECTOR_DIM  = 384;
 
 let embedderPromise;
@@ -26,7 +26,6 @@ async function getEmbedder() {
     const pipe = await getPipeline();
     embedderPromise = pipe("feature-extraction", EMBED_MODEL);
   }
-
   return embedderPromise;
 }
 
@@ -42,6 +41,33 @@ function getQdrant() {
 
 // ── Embed a single string ─────────────────────────────────────────
 export async function embed(text) {
+  const token = process.env.HF_TOKEN || process.env.HUGGINGFACE_API_KEY;
+  if (token) {
+    const response = await fetch(`https://api-inference.huggingface.co/pipeline/feature-extraction/${HF_EMBED_MODEL}`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ inputs: text }),
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      throw new Error(`Hugging Face API error: ${response.status} ${response.statusText} - ${errText}`);
+    }
+
+    const data = await response.json();
+    if (Array.isArray(data)) {
+      if (Array.isArray(data[0])) {
+        return data[0]; // If nested, extract the first embedding
+      }
+      return data;
+    }
+    throw new Error(`Unexpected Hugging Face response format: ${JSON.stringify(data)}`);
+  }
+
+  // Fallback to local Transformers.js
   const embedder = await getEmbedder();
   const output = await embedder(text, {
     pooling: "mean",
@@ -53,6 +79,45 @@ export async function embed(text) {
 
 // ── Embed an array of strings in safe batches ─────────────────────
 async function embedBatch(texts) {
+  const token = process.env.HF_TOKEN || process.env.HUGGINGFACE_API_KEY;
+  if (token) {
+    const vectors = [];
+    const batchSize = 16;
+
+    for (let i = 0; i < texts.length; i += batchSize) {
+      const batch = texts.slice(i, i + batchSize);
+      
+      const response = await fetch(`https://api-inference.huggingface.co/pipeline/feature-extraction/${HF_EMBED_MODEL}`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ inputs: batch }),
+      });
+
+      if (!response.ok) {
+        const errText = await response.text();
+        throw new Error(`Hugging Face API error: ${response.status} ${response.statusText} - ${errText}`);
+      }
+
+      const data = await response.json();
+      if (!Array.isArray(data)) {
+        throw new Error(`Unexpected Hugging Face response format: ${JSON.stringify(data)}`);
+      }
+      
+      for (const item of data) {
+        if (Array.isArray(item)) {
+          vectors.push(item);
+        } else {
+          throw new Error(`Unexpected item format in HF response: ${JSON.stringify(item)}`);
+        }
+      }
+    }
+    return vectors;
+  }
+
+  // Fallback to local Transformers.js batching
   const vectors   = [];
   const batchSize = 8;
 
@@ -64,6 +129,7 @@ async function embedBatch(texts) {
 
   return vectors;
 }
+
 
 // ── Ensure Qdrant collection exists ──────────────────────────────
 async function ensureCollection(name) {
