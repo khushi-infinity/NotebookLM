@@ -65,7 +65,41 @@ function estimatePage(charOffset, totalChars, totalPages) {
   return Math.max(1, Math.ceil((charOffset / totalChars) * totalPages));
 }
 
-// ── Main export ───────────────────────────────────────────────────
+// Helper to perform Parent-Child splitting:
+// Splits text into large parent chunks, then splits each parent into smaller child chunks.
+// Returns an array of child chunks mapped to their parent text payloads.
+function parentChildSplit(rawText, pageCount) {
+  const parents = recursiveSplit(rawText, 1200, 200);
+  const chunks = [];
+  let childGlobalIndex = 0;
+
+  parents.forEach((parentText, parentIdx) => {
+    // Find approximate position in the source text for page estimation
+    const searchSnippet = parentText.slice(0, 60).replace(/\s+/g, " ").trim();
+    const approxOffset = rawText.indexOf(searchSnippet);
+    const page = estimatePage(
+      approxOffset > 0 ? approxOffset : parentIdx * 1000,
+      rawText.length,
+      pageCount
+    );
+
+    const children = recursiveSplit(parentText, 300, 50);
+    children.forEach((childText) => {
+      chunks.push({
+        text: childText,
+        metadata: {
+          page,
+          chunkIndex: childGlobalIndex++,
+          parentText: parentText, // Keep parent text in metadata
+        },
+      });
+    });
+  });
+
+  return chunks;
+}
+
+// ── Main exports ──────────────────────────────────────────────────
 export async function loadAndChunk(filePath) {
   const ext = path.extname(filePath).toLowerCase();
   let rawText  = "";
@@ -87,25 +121,7 @@ export async function loadAndChunk(filePath) {
     throw new Error("Document appears to be empty or could not be parsed.");
   }
 
-  // ── Split into overlapping chunks ──────────────────────────────
-  const texts = recursiveSplit(rawText, 1000, 200);
-
-  // ── Attach metadata to each chunk ─────────────────────────────
-  const chunks = texts.map((text, i) => {
-    // Find approximate position in the source text for page estimation
-    const searchSnippet = text.slice(0, 60).replace(/\s+/g, " ").trim();
-    const approxOffset  = rawText.indexOf(searchSnippet);
-    const page = estimatePage(
-      approxOffset > 0 ? approxOffset : i * 800,
-      rawText.length,
-      pageCount
-    );
-    return {
-      text,
-      metadata: { page, chunkIndex: i },
-    };
-  });
-
+  const chunks = parentChildSplit(rawText, pageCount);
   return { chunks, pageCount };
 }
 
@@ -127,22 +143,7 @@ export async function loadAndChunkFromUpload(file) {
     throw new Error("Document appears to be empty or could not be parsed.");
   }
 
-  const texts = recursiveSplit(rawText, 1000, 200);
-
-  const chunks = texts.map((text, i) => {
-    const searchSnippet = text.slice(0, 60).replace(/\s+/g, " ").trim();
-    const approxOffset = rawText.indexOf(searchSnippet);
-    const page = estimatePage(
-      approxOffset > 0 ? approxOffset : i * 800,
-      rawText.length,
-      pageCount
-    );
-
-    return {
-      text,
-      metadata: { page, chunkIndex: i },
-    };
-  });
-
+  const chunks = parentChildSplit(rawText, pageCount);
   return { chunks, pageCount };
 }
+

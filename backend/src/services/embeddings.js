@@ -158,6 +158,7 @@ export async function storeChunks(chunks, collectionName) {
       text: chunk.text,
       page: chunk.metadata.page,
       chunkIndex: chunk.metadata.chunkIndex,
+      parentText: chunk.metadata.parentText || chunk.text, // Store parentText in payload
     },
   }));
 
@@ -183,8 +184,10 @@ export async function retrieve(query, collectionName, k = 4) {
 
   return results.map(r => ({
     text:  r.payload.text,
+    parentText: r.payload.parentText || r.payload.text, // Fallback to child text if parentText doesn't exist
     page:  r.payload.page,
     score: r.score,
   }));
 }
+
 
