@@ -34,7 +34,11 @@ router.post("/", uploadMemory.single("file"), async (req, res) => {
     });
   } catch (err) {
     console.error("[/api/upload-index]", err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({
+      error: err.message,
+      cause: err.cause ? (err.cause.message || String(err.cause)) : undefined,
+      stack: err.stack,
+    });
   }
 });
 
