@@ -47,11 +47,29 @@ notebooklm-rag/
 | Layer | Tool | Notes |
 |-------|------|-------|
 | Frontend | Vanilla HTML/CSS/JS | No framework, no build step |
-| Backend | Node.js + Express | ES Modules |
-| Embeddings | Groq `nomic-embed-text-v1.5` | Free, 768-dim |
-| LLM | Groq `llama-3.3-70b-versatile` | Free, highly capable |
+| Backend | Node.js + Express | ES Modules, serverless-optimized |
+| Embeddings | Hugging Face Inference API | `sentence-transformers/all-MiniLM-L6-v2` (Free, 384-dim) |
+| LLM | Groq `llama-3.3-70b-versatile` | Free, highly capable generator |
+| Reranker/Judge | Groq `llama-3.1-8b-instant` | Free, ultra-fast pre/post-retrieval processing |
 | Vector DB | Qdrant | Local via Docker or Qdrant Cloud |
 | PDF parsing | `pdf-parse` | Pure JS, no Python |
+
+---
+
+## 🏗️ Advanced RAG Architecture
+
+This project implements an Advanced RAG pipeline to ensure highly accurate, grounded, and context-rich answers:
+
+1. **Pre-Retrieval: Query Rewriting**
+   - Vague or conversational queries are processed by `llama-3.1-8b-instant` to generate a standalone search query optimized for semantic search.
+2. **Ingestion: Parent-Child Chunking**
+   - Documents are split into large **Parent Chunks** (1,200 characters) to preserve context and smaller **Child Chunks** (300 characters) for high-resolution vector matching.
+   - Child chunks are stored in Qdrant with their parent texts mapped in the metadata. Retrieval matches on children, but feeds the parent text as context to the LLM.
+3. **Post-Retrieval: LLM Reranking**
+   - Retrieves `k = 8` child chunks from Qdrant, then utilizes `llama-3.1-8b-instant` to rerank and filter down to the top 4 most relevant parent chunks.
+4. **Self-Correction: LLM-as-a-Judge Loop**
+   - The generated response is evaluated by a QA Judge (`llama-3.1-8b-instant`) for **Faithfulness** (no hallucinations relative to context) and **Answer Relevance**.
+   - If it fails, the Judge provides correction feedback, triggering a self-correction loop to regenerate a refined answer.
 
 ---
 
