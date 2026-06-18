@@ -43,7 +43,7 @@ function getQdrant() {
 export async function embed(text) {
   const token = process.env.HF_TOKEN || process.env.HUGGINGFACE_API_KEY;
   if (token) {
-    const response = await fetch(`https://api-inference.huggingface.co/pipeline/feature-extraction/${HF_EMBED_MODEL}`, {
+    const response = await fetch(`https://api-inference.huggingface.co/models/${HF_EMBED_MODEL}`, {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${token}`,
@@ -87,7 +87,7 @@ async function embedBatch(texts) {
     for (let i = 0; i < texts.length; i += batchSize) {
       const batch = texts.slice(i, i + batchSize);
       
-      const response = await fetch(`https://api-inference.huggingface.co/pipeline/feature-extraction/${HF_EMBED_MODEL}`, {
+      const response = await fetch(`https://api-inference.huggingface.co/models/${HF_EMBED_MODEL}`, {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${token}`,
